@@ -35,6 +35,10 @@
 #define TS_MINY 120
 #define TS_MAXY 910
 
+#define MAIN_MOTOR_INTERFACE 1
+#define MAIN_MOTOR_DIR 50
+#define MAIN_MOTOR_STEP 68
+
 TouchScreen ts = TouchScreen(XP, YP, XM, YM, 300);
 Elegoo_TFTLCD tft(LCD_CS, LCD_CD, LCD_WR, LCD_RD, LCD_RESET);
 int zutatenAnzahl{5};
@@ -45,6 +49,9 @@ int zutaten[5] = {};
 unsigned long lastScreenTouch;
 unsigned long touchScreenTimeDelta = 40;
 bool cocktailActive = false;
+const int ELEMENT_COUNT = 20;
+Array<MotorCommand, ELEMENT_COUNT> motorCommands;
+AccelStepper mainMotor(MAIN_MOTOR_INTERFACE, MAIN_MOTOR_STEP, MAIN_MOTOR_DIR);
 
 
 
@@ -84,11 +91,32 @@ void setup() {
   tft.setRotation(3);
   initButtons();
   updateGui();
-  // put your setup code here, to run once:
+  mainMotor.setMaxSpeed(3000);
+	mainMotor.setAcceleration(200);
+	mainMotor.setSpeed(200);
+  mainMotor.moveTo(2000);
+  /*Serial.println(motorCommands.size());
+  motorCommands.push_back(MotorCommand{&mainMotor, int{2000}});
+  Serial.println(motorCommands.size());*/
 }
 
 void loop() {
+  // Move the motor one step
+
+
+  /*if(!motorCommands.empty()) {
+    if(motorCommands.back().done()) {
+      motorCommands.pop_back();
+    } else {
+      motorCommands.back().executeTick();
+    }
+  }*/
+
   // put your main code here, to run repeatedly:
+  processGui();
+}
+
+void processGui() {
   TSPoint p = ts.getPoint();
   int16_t tmp = p.x;
   p.x = p.y;
@@ -108,8 +136,25 @@ void loop() {
 
     //Start Button
     if(startButton.contains(p.x, p.y)) {
-      cocktailActive = true;
-      initButtons();
+      startCocktail();
+    }
+  }
+}
+
+void startCocktail() {
+  
+  cocktailActive = true;
+  initButtons();
+
+  for(int zutatIndex{0}; zutatIndex < zutatenAnzahl; ++zutatIndex) {
+    mainMotor.moveTo(zutatIndex * 1000);
+    Serial.println(zutaten[zutatIndex]);
+    while (mainMotor.distanceToGo() != 0 && zutaten[zutatIndex] != 0) {
+      mainMotor.run();
+    }
+
+    for(int dipNr{0}; dipNr < zutaten[zutatIndex]; ++dipNr) {
+      
     }
   }
 }
