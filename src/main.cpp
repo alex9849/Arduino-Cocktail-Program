@@ -38,6 +38,9 @@
 #define MAIN_MOTOR_INTERFACE 1
 #define MAIN_MOTOR_DIR 50
 #define MAIN_MOTOR_STEP 68
+#define DIP_MOTOR_INTERFACE 1
+#define DIP_MOTOR_DIR 52
+#define DIP_MOTOR_STEP 69
 
 TouchScreen ts = TouchScreen(XP, YP, XM, YM, 300);
 Elegoo_TFTLCD tft(LCD_CS, LCD_CD, LCD_WR, LCD_RD, LCD_RESET);
@@ -49,9 +52,8 @@ int zutaten[5] = {};
 unsigned long lastScreenTouch;
 unsigned long touchScreenTimeDelta = 40;
 bool cocktailActive = false;
-const int ELEMENT_COUNT = 20;
-Array<MotorCommand, ELEMENT_COUNT> motorCommands;
 AccelStepper mainMotor(MAIN_MOTOR_INTERFACE, MAIN_MOTOR_STEP, MAIN_MOTOR_DIR);
+AccelStepper dipMotor(DIP_MOTOR_INTERFACE, DIP_MOTOR_STEP, DIP_MOTOR_DIR);
 
 
 
@@ -94,25 +96,15 @@ void setup() {
   mainMotor.setMaxSpeed(3000);
 	mainMotor.setAcceleration(200);
 	mainMotor.setSpeed(200);
-  mainMotor.moveTo(2000);
-  /*Serial.println(motorCommands.size());
-  motorCommands.push_back(MotorCommand{&mainMotor, int{2000}});
-  Serial.println(motorCommands.size());*/
+  mainMotor.setCurrentPosition(0);
+
+  dipMotor.setMaxSpeed(3000);
+	dipMotor.setAcceleration(200);
+	dipMotor.setSpeed(200);
+  dipMotor.setCurrentPosition(0);
 }
 
 void loop() {
-  // Move the motor one step
-
-
-  /*if(!motorCommands.empty()) {
-    if(motorCommands.back().done()) {
-      motorCommands.pop_back();
-    } else {
-      motorCommands.back().executeTick();
-    }
-  }*/
-
-  // put your main code here, to run repeatedly:
   processGui();
 }
 
@@ -136,27 +128,48 @@ void processGui() {
 
     //Start Button
     if(startButton.contains(p.x, p.y)) {
-      startCocktail();
+      makeCocktail();
     }
   }
 }
 
-void startCocktail() {
+void makeCocktail() {
   
   cocktailActive = true;
   initButtons();
-
+  int startPositionMain = mainMotor.currentPosition();
   for(int zutatIndex{0}; zutatIndex < zutatenAnzahl; ++zutatIndex) {
     mainMotor.moveTo(zutatIndex * 1000);
-    Serial.println(zutaten[zutatIndex]);
     while (mainMotor.distanceToGo() != 0 && zutaten[zutatIndex] != 0) {
       mainMotor.run();
     }
 
-    for(int dipNr{0}; dipNr < zutaten[zutatIndex]; ++dipNr) {
-      
+    int startPositionDiper = dipMotor.currentPosition();
+    bool first = true;
+    for(int dipNr{0}; dipNr < zutaten[zutatIndex] / 2; ++dipNr) {
+      if(first) {
+        first = false;
+        dipMotor.moveTo(2000);
+      }
+    
+      while (dipMotor.distanceToGo() != 0) {
+        dipMotor.run();
+      }
+      delay(2000);
+      dipMotor.moveTo(startPositionDiper);
+      while (dipMotor.distanceToGo() != 0) {
+        dipMotor.run();
+      }
     }
   }
+
+  mainMotor.moveTo(startPositionMain);
+    while (mainMotor.distanceToGo() != 0) {
+      mainMotor.run();
+    }
+
+  cocktailActive = false;
+  initButtons();
 }
 
 void processZutatenButton(Elegoo_GFX_Button &button, TSPoint &p, int &zutatenZahl, bool isPlus) {
