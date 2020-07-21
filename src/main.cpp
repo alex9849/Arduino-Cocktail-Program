@@ -54,6 +54,7 @@ unsigned long touchScreenTimeDelta = 40;
 bool cocktailActive = false;
 AccelStepper mainMotor(MAIN_MOTOR_INTERFACE, MAIN_MOTOR_STEP, MAIN_MOTOR_DIR);
 AccelStepper dipMotor(DIP_MOTOR_INTERFACE, DIP_MOTOR_STEP, DIP_MOTOR_DIR);
+Bounce conveyorBeltButton = Bounce();
 
 
 
@@ -89,23 +90,67 @@ void setup() {
     identifier=0x9341;
    
   }
+  //Förderband button
+  pinMode(22, INPUT_PULLUP);
+  conveyorBeltButton.attach(22);
+  conveyorBeltButton.interval(5);
+
   tft.begin(identifier);
   tft.setRotation(3);
-  initButtons();
-  updateGui();
-  mainMotor.setMaxSpeed(3000);
+
+  mainMotor.setMaxSpeed(2000);
 	mainMotor.setAcceleration(200);
-	mainMotor.setSpeed(200);
   mainMotor.setCurrentPosition(0);
 
-  dipMotor.setMaxSpeed(3000);
+  dipMotor.setMaxSpeed(2000);
 	dipMotor.setAcceleration(200);
-	dipMotor.setSpeed(200);
   dipMotor.setCurrentPosition(0);
+
+  referenceRun();
+  initButtons();
+  updateGui();
+  mainMotor.setSpeed(200);
 }
 
 void loop() {
   processGui();
+}
+
+void referenceRun() {
+  tft.fillScreen(BLACK);
+  tft.setCursor(0, 0);
+  tft.setTextColor(WHITE);
+  tft.setTextSize(3);
+  tft.println("Referenzfahrt....");
+  conveyorBeltButton.update();
+  Serial.println(millis());
+  bool conveyorBeltButtonPressed = conveyorBeltButton.read() == HIGH;
+  while (!conveyorBeltButtonPressed) {
+    mainMotor.setSpeed(-100);
+    mainMotor.runSpeed();
+    conveyorBeltButton.update();
+    conveyorBeltButtonPressed = conveyorBeltButton.read() == HIGH;
+  }
+  mainMotor.setCurrentPosition(0);
+  mainMotor.moveTo(100);
+  while (mainMotor.distanceToGo() != 0) {
+      mainMotor.run();
+      //We need to update do this in order to let the libary find out that the button isn't pressed
+      conveyorBeltButton.update();
+  }
+
+  Serial.println(millis());
+  conveyorBeltButton.update();
+  conveyorBeltButtonPressed = conveyorBeltButton.read() == HIGH;
+  Serial.println(conveyorBeltButtonPressed);
+  while (!conveyorBeltButtonPressed) {
+    mainMotor.setSpeed(-10);
+    mainMotor.runSpeed();
+    conveyorBeltButton.update();
+    conveyorBeltButtonPressed = conveyorBeltButton.read() == HIGH;
+    Serial.println(conveyorBeltButtonPressed);
+  }
+  mainMotor.setCurrentPosition(0);
 }
 
 void processGui() {
