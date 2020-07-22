@@ -38,9 +38,8 @@
 #define MAIN_MOTOR_INTERFACE 1
 #define MAIN_MOTOR_DIR 50
 #define MAIN_MOTOR_STEP 68
-#define DIP_MOTOR_INTERFACE 1
-#define DIP_MOTOR_DIR 52
-#define DIP_MOTOR_STEP 69
+#define MOTOR_TIME_MILLIS_PER_CL 4400
+#define CONVEYERBELD_PIN 22
 
 TouchScreen ts = TouchScreen(XP, YP, XM, YM, 300);
 Elegoo_TFTLCD tft(LCD_CS, LCD_CD, LCD_WR, LCD_RD, LCD_RESET);
@@ -49,11 +48,11 @@ Elegoo_GFX_Button plusButtons[5] = {};
 Elegoo_GFX_Button minusButtons[5] = {};
 Elegoo_GFX_Button startButton{};
 int zutaten[5] = {};
+int pumps[5] = {47, 46, 45, 44, 43};
 unsigned long lastScreenTouch;
 unsigned long touchScreenTimeDelta = 40;
 bool cocktailActive = false;
 AccelStepper mainMotor(MAIN_MOTOR_INTERFACE, MAIN_MOTOR_STEP, MAIN_MOTOR_DIR);
-AccelStepper dipMotor(DIP_MOTOR_INTERFACE, DIP_MOTOR_STEP, DIP_MOTOR_DIR);
 Bounce conveyorBeltButton = Bounce();
 
 
@@ -90,9 +89,15 @@ void setup() {
     identifier=0x9341;
    
   }
+  //Pumpen pins
+  for(int i{0}; i < zutatenAnzahl; i++) {
+    pinMode(pumps[i], OUTPUT);
+    digitalWrite(pumps[i], HIGH);
+  }
+
   //Förderband button
-  pinMode(22, INPUT_PULLUP);
-  conveyorBeltButton.attach(22);
+  pinMode(CONVEYERBELD_PIN, INPUT_PULLUP);
+  conveyorBeltButton.attach(CONVEYERBELD_PIN);
   conveyorBeltButton.interval(5);
 
   tft.begin(identifier);
@@ -101,10 +106,6 @@ void setup() {
   mainMotor.setMaxSpeed(2000);
 	mainMotor.setAcceleration(200);
   mainMotor.setCurrentPosition(0);
-
-  dipMotor.setMaxSpeed(2000);
-	dipMotor.setAcceleration(200);
-  dipMotor.setCurrentPosition(0);
 
   referenceRun();
   initButtons();
@@ -132,7 +133,7 @@ void referenceRun() {
     conveyorBeltButtonPressed = conveyorBeltButton.read() == HIGH;
   }
   mainMotor.setCurrentPosition(0);
-  mainMotor.moveTo(100);
+  mainMotor.moveTo(50);
   while (mainMotor.distanceToGo() != 0) {
       mainMotor.run();
       //We need to update do this in order to let the libary find out that the button isn't pressed
@@ -188,24 +189,11 @@ void makeCocktail() {
     while (mainMotor.distanceToGo() != 0 && zutaten[zutatIndex] != 0) {
       mainMotor.run();
     }
-
-    int startPositionDiper = dipMotor.currentPosition();
-    bool first = true;
-    for(int dipNr{0}; dipNr < zutaten[zutatIndex] / 2; ++dipNr) {
-      if(first) {
-        first = false;
-        dipMotor.moveTo(2000);
-      }
     
-      while (dipMotor.distanceToGo() != 0) {
-        dipMotor.run();
-      }
-      delay(2000);
-      dipMotor.moveTo(startPositionDiper);
-      while (dipMotor.distanceToGo() != 0) {
-        dipMotor.run();
-      }
-    }
+    digitalWrite(pumps[zutatIndex], LOW);
+    delay(zutaten[zutatIndex] * MOTOR_TIME_MILLIS_PER_CL);
+    digitalWrite(pumps[zutatIndex], HIGH);
+    delay(1000);
   }
 
   mainMotor.moveTo(startPositionMain);
@@ -220,11 +208,11 @@ void makeCocktail() {
 void processZutatenButton(Elegoo_GFX_Button &button, TSPoint &p, int &zutatenZahl, bool isPlus) {
   if(button.contains(p.x, p.y)) {
     if(isPlus) {
-      zutatenZahl = zutatenZahl + 2;
+      zutatenZahl = zutatenZahl + 1;
       updateGui();
     } else {
       if(zutatenZahl != 0) {
-        zutatenZahl = zutatenZahl - 2;
+        zutatenZahl = zutatenZahl - 1;
         updateGui(); 
       }
     }
