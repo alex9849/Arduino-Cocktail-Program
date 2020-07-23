@@ -54,7 +54,6 @@ unsigned long lastScreenTouch;
 unsigned long touchScreenTimeDelta = 40;
 bool cocktailActive = false;
 AccelStepper mainMotor(MAIN_MOTOR_INTERFACE, MAIN_MOTOR_STEP, MAIN_MOTOR_DIR);
-Bounce conveyorBeltButton = Bounce();
 
 
 
@@ -98,8 +97,6 @@ void setup() {
 
   //Förderband button
   pinMode(CONVEYERBELD_BUTTON_PIN, INPUT_PULLUP);
-  conveyorBeltButton.attach(CONVEYERBELD_BUTTON_PIN);
-  conveyorBeltButton.interval(5);
 
   tft.begin(identifier);
   tft.setRotation(3);
@@ -124,32 +121,26 @@ void referenceRun() {
   tft.setTextColor(WHITE);
   tft.setTextSize(3);
   tft.println("Referenzfahrt....");
-  conveyorBeltButton.update();
   Serial.println(millis());
-  bool conveyorBeltButtonPressed = conveyorBeltButton.read() == HIGH;
+  bool conveyorBeltButtonPressed = digitalRead(CONVEYERBELD_BUTTON_PIN) == HIGH;
   while (!conveyorBeltButtonPressed) {
     mainMotor.setSpeed(-100);
     mainMotor.runSpeed();
-    conveyorBeltButton.update();
-    conveyorBeltButtonPressed = conveyorBeltButton.read() == HIGH;
+    conveyorBeltButtonPressed = digitalRead(CONVEYERBELD_BUTTON_PIN) == HIGH;
   }
   mainMotor.setCurrentPosition(0);
   mainMotor.moveTo(50);
   while (mainMotor.distanceToGo() != 0) {
       mainMotor.run();
-      //We need to update do this in order to let the libary find out that the button isn't pressed
-      conveyorBeltButton.update();
   }
 
   Serial.println(millis());
-  conveyorBeltButton.update();
-  conveyorBeltButtonPressed = conveyorBeltButton.read() == HIGH;
+  conveyorBeltButtonPressed = digitalRead(CONVEYERBELD_BUTTON_PIN) == HIGH;
   Serial.println(conveyorBeltButtonPressed);
   while (!conveyorBeltButtonPressed) {
     mainMotor.setSpeed(-10);
     mainMotor.runSpeed();
-    conveyorBeltButton.update();
-    conveyorBeltButtonPressed = conveyorBeltButton.read() == HIGH;
+    conveyorBeltButtonPressed = digitalRead(CONVEYERBELD_BUTTON_PIN) == HIGH;
     Serial.println(conveyorBeltButtonPressed);
   }
   mainMotor.setCurrentPosition(0);
