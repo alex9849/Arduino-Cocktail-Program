@@ -36,11 +36,11 @@
 #define TS_MAXY 910
 
 #define MAIN_MOTOR_INTERFACE 1
-#define MAIN_MOTOR_DIR 50
-#define MAIN_MOTOR_STEP 68
-#define MAIN_MOTOR_STEPWITH_BETWEEN_STATIONS 1000
-#define MOTOR_TIME_MILLIS_PER_CL 4400
-#define CONVEYERBELD_BUTTON_PIN 22
+#define MAIN_MOTOR_DIR 22
+#define MAIN_MOTOR_STEP 69
+#define MAIN_MOTOR_STEPWITH_BETWEEN_STATIONS 680
+#define MOTOR_TIME_MILLIS_PER_CL 4840L
+#define CONVEYERBELD_BUTTON_PIN 30
 
 TouchScreen ts = TouchScreen(XP, YP, XM, YM, 300);
 Elegoo_TFTLCD tft(LCD_CS, LCD_CD, LCD_WR, LCD_RD, LCD_RESET);
@@ -49,7 +49,8 @@ Elegoo_GFX_Button plusButtons[5] = {};
 Elegoo_GFX_Button minusButtons[5] = {};
 Elegoo_GFX_Button startButton{};
 int zutaten[5] = {};
-int pumps[5] = {47, 46, 45, 44, 43};
+int pumps[5] = {45, 47, 49, 51, 53};
+long pumpTimePerClInMs[5] = {4840, 5260, 4208, 4840, 5438};
 unsigned long lastScreenTouch;
 unsigned long touchScreenTimeDelta = 40;
 bool cocktailActive = false;
@@ -75,8 +76,8 @@ void setup() {
     Serial.println(F("Found HX8357D LCD driver"));
   } else if(identifier==0x0101)
   {     
-      identifier=0x9341;
-       Serial.println(F("Found 0x9341 LCD driver"));
+    identifier=0x9341;
+    Serial.println(F("Found 0x9341 LCD driver"));
   }else {
     Serial.print(F("Unknown LCD driver chip: "));
     Serial.println(identifier, HEX);
@@ -121,7 +122,6 @@ void referenceRun() {
   tft.setTextColor(WHITE);
   tft.setTextSize(3);
   tft.println("Referenzfahrt....");
-  Serial.println(millis());
   bool conveyorBeltButtonPressed = digitalRead(CONVEYERBELD_BUTTON_PIN) == HIGH;
   while (!conveyorBeltButtonPressed) {
     mainMotor.setSpeed(-100);
@@ -134,14 +134,11 @@ void referenceRun() {
       mainMotor.run();
   }
 
-  Serial.println(millis());
   conveyorBeltButtonPressed = digitalRead(CONVEYERBELD_BUTTON_PIN) == HIGH;
-  Serial.println(conveyorBeltButtonPressed);
   while (!conveyorBeltButtonPressed) {
     mainMotor.setSpeed(-10);
     mainMotor.runSpeed();
     conveyorBeltButtonPressed = digitalRead(CONVEYERBELD_BUTTON_PIN) == HIGH;
-    Serial.println(conveyorBeltButtonPressed);
   }
   mainMotor.setCurrentPosition(0);
 }
@@ -182,9 +179,9 @@ void makeCocktail() {
       while (mainMotor.distanceToGo() != 0) {
        mainMotor.run();
       }
-
+      
       digitalWrite(pumps[zutatIndex], LOW);
-      delay(zutaten[zutatIndex] * MOTOR_TIME_MILLIS_PER_CL);
+      delay(zutaten[zutatIndex] * pumpTimePerClInMs[zutatIndex]);
       digitalWrite(pumps[zutatIndex], HIGH);
       delay(1000);
     }
