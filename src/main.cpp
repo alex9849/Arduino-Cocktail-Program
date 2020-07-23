@@ -38,8 +38,9 @@
 #define MAIN_MOTOR_INTERFACE 1
 #define MAIN_MOTOR_DIR 50
 #define MAIN_MOTOR_STEP 68
+#define MAIN_MOTOR_STEPWITH_BETWEEN_STATIONS 1000
 #define MOTOR_TIME_MILLIS_PER_CL 4400
-#define CONVEYERBELD_PIN 22
+#define CONVEYERBELD_BUTTON_PIN 22
 
 TouchScreen ts = TouchScreen(XP, YP, XM, YM, 300);
 Elegoo_TFTLCD tft(LCD_CS, LCD_CD, LCD_WR, LCD_RD, LCD_RESET);
@@ -96,8 +97,8 @@ void setup() {
   }
 
   //Förderband button
-  pinMode(CONVEYERBELD_PIN, INPUT_PULLUP);
-  conveyorBeltButton.attach(CONVEYERBELD_PIN);
+  pinMode(CONVEYERBELD_BUTTON_PIN, INPUT_PULLUP);
+  conveyorBeltButton.attach(CONVEYERBELD_BUTTON_PIN);
   conveyorBeltButton.interval(5);
 
   tft.begin(identifier);
@@ -185,15 +186,17 @@ void makeCocktail() {
   initButtons();
   int startPositionMain = mainMotor.currentPosition();
   for(int zutatIndex{0}; zutatIndex < zutatenAnzahl; ++zutatIndex) {
-    mainMotor.moveTo(zutatIndex * 1000);
-    while (mainMotor.distanceToGo() != 0 && zutaten[zutatIndex] != 0) {
-      mainMotor.run();
+    if(zutaten[zutatIndex] != 0) {
+      mainMotor.moveTo(zutatIndex * MAIN_MOTOR_STEPWITH_BETWEEN_STATIONS);
+      while (mainMotor.distanceToGo() != 0) {
+       mainMotor.run();
+      }
+
+      digitalWrite(pumps[zutatIndex], LOW);
+      delay(zutaten[zutatIndex] * MOTOR_TIME_MILLIS_PER_CL);
+      digitalWrite(pumps[zutatIndex], HIGH);
+      delay(1000);
     }
-    
-    digitalWrite(pumps[zutatIndex], LOW);
-    delay(zutaten[zutatIndex] * MOTOR_TIME_MILLIS_PER_CL);
-    digitalWrite(pumps[zutatIndex], HIGH);
-    delay(1000);
   }
 
   mainMotor.moveTo(startPositionMain);
